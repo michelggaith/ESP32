@@ -2,9 +2,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
+#include <driver/adc.h>
 #define BT 17
 
-int display[] = {14,27,18,25,26,12,13};
+adc1_channel_t adc_pot = ADC_CHANNEL_6;
+
+void init_hw(void);
+
+char display[] = {14,27,18,25,26,12,13};
 int number[10][7]={
     {1,1,1,1,1,1,0}, //0
     {0,1,1,0,0,0,0}, //1
@@ -18,6 +23,31 @@ int number[10][7]={
     {1,1,1,1,0,1,1}  //9
 };
 
+
+
+
+void app_main() {       //Representa el void setup
+
+    init_hw();
+    int cnt = 0;
+    for(int i=0; i<7; i++){
+        gpio_set_level(display[i], number[0][i]);
+    }
+    while (1)
+    {
+        int state_bt = gpio_get_level(BT);
+        for(int i=0; i<7; i++)
+        {
+            gpio_set_level(display[i], number[cnt][i]);
+        }
+        cnt = (state_bt && cnt<10) ? (cnt+1) : cnt;
+        cnt = cnt > 9 ? 0 : cnt;
+        int pot = adc1_get_raw(adc_pot);
+        printf("ADC: %d\n", pot);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+    }
+    
+}
 
 void init_hw(void)
 {
@@ -45,25 +75,8 @@ void init_hw(void)
     /*gpio_set_direction(LED, GPIO_MODE_OUTPUT);
     gpio_set_direction(BT, GPIO_MODE_INPUT);
     gpio_set_pull_mode(BT, GPIO_PULLDOWN_ONLY);*/
-}
 
-void app_main() {       //Representa el void setup
-
-    init_hw();
-    int cnt = 0;
-    for(int i=0; i<7; i++){
-        gpio_set_level(display[i], number[0][i]);
-    }
-    while (1)
-    {
-        int state_bt = gpio_get_level(BT);
-        for(int i=0; i<7; i++)
-        {
-            gpio_set_level(display[i], number[cnt][i]);
-        }
-        cnt = (state_bt && cnt<10) ? (cnt+1) : cnt;
-        cnt = cnt > 9 ? 0 : cnt;
-        vTaskDelay(200 / portTICK_PERIOD_MS);
-    }
-    
+    /*CONFIGURACION DEL ADC*/
+    adc1_config_width(ADC_WIDTH_BIT_12);        // CONFIGURACION DE LA CANTIDAD DE BITS DEL ADC
+    adc1_config_channel_atten(adc_pot, ADC_ATTEN_DB_11); //CONFIGURACION DE LA ATENUACION DEL ADC
 }
