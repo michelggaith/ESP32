@@ -3,9 +3,12 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include <driver/adc.h>
+#include <driver/ledc.h>
 #define BT 17
+#define LED 2
 
 adc1_channel_t adc_pot = ADC_CHANNEL_6;
+ledc_channel_config_t pwm;
 
 void init_hw(void);
 
@@ -35,6 +38,7 @@ void app_main() {       //Representa el void setup
     }
     while (1)
     {
+        //CONTROL DE UN DISPLAY 7 segmentos
         int state_bt = gpio_get_level(BT);
         for(int i=0; i<7; i++)
         {
@@ -42,8 +46,12 @@ void app_main() {       //Representa el void setup
         }
         cnt = (state_bt && cnt<10) ? (cnt+1) : cnt;
         cnt = cnt > 9 ? 0 : cnt;
+
+    //CONTROL INTENSIDAD DE LED CON POTE, ADC y PWM
         int pot = adc1_get_raw(adc_pot);
         printf("ADC: %d\n", pot);
+        ledc_set_duty(pwm.speed_mode, pwm.channel, pot);
+        ledc_update_duty(pwm.speed_mode, pwm.channel);
         vTaskDelay(200 / portTICK_PERIOD_MS);
     }
     
@@ -79,4 +87,24 @@ void init_hw(void)
     /*CONFIGURACION DEL ADC*/
     adc1_config_width(ADC_WIDTH_BIT_12);        // CONFIGURACION DE LA CANTIDAD DE BITS DEL ADC
     adc1_config_channel_atten(adc_pot, ADC_ATTEN_DB_11); //CONFIGURACION DE LA ATENUACION DEL ADC
+    
+    /*DESDE ACA SE GENERA LA CONFIGURACION DEL PWM*/
+    ledc_timer_config_t timer = {
+        .duty_resolution = LEDC_TIMER_12_BIT,
+        .freq_hz = 1000,
+        .speed_mode = LEDC_HIGH_SPEED_MODE,
+        .timer_num = LEDC_TIMER_0,
+        .clk_cfg = LEDC_AUTO_CLK
+    };
+
+    ledc_timer_config(&timer);
+    pwm.channel = LEDC_CHANNEL_0;
+    pwm.duty = 0;
+    pwm.gpio_num = LED;
+    pwm.hpoint = 0;
+    pwm.timer_sel = LEDC_TIMER_0;
+    pwm.speed_mode = LEDC_HIGH_SPEED_MODE;
+
+    ledc_channel_config(&pwm);
+
 }
